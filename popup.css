@@ -1,0 +1,180 @@
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  width: 400px;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+}
+
+.container {
+  padding: 16px;
+}
+
+h1 {
+  color: #333;
+  font-size: 20px;
+  margin-top: 0;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.search-container {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+#search-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px 0 0 4px;
+  font-size: 14px;
+}
+
+#search-button {
+  padding: 10px 16px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+#search-button:hover {
+  background-color: #3367d6;
+}
+
+.api-key-container {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+#api-key {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px 0 0 4px;
+  font-size: 12px;
+}
+
+#save-api-key {
+  padding: 8px 12px;
+  background-color: #34a853;
+  color: white;
+  border: none;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+#save-api-key:hover {
+  background-color: #2d9144;
+}
+
+.status {
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  min-height: 16px;
+}
+
+.results-container {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  background-color: white;
+}
+
+#results-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tab-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.tab-item:last-child {
+  border-bottom: none;
+}
+
+.tab-item:hover {
+  background-color: #f5f5f5;
+}
+
+.tab-favicon {
+  width: 16px;
+  height: 16px;
+  margin-right: 12px;
+}
+
+.tab-info {
+  flex: 1;
+}
+
+.tab-title {
+  font-weight: 500;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-url {
+  color: #666;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.spinner {
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top: 3px solid #4285f4;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 12px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.hidden {
+  display: none;
+}
+
+.error {
+  color: #d93025;
+}
+
+.success {
+  color: #34a853;
+}
+
