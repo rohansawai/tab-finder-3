@@ -76,8 +76,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Function to find matching tabs using our proxy API
   async function findMatchingTabsWithAI(query, tabData) {
-    // Our proxy API endpoint - replace with your deployed URL
-    const proxyUrl = "https://your-vercel-app.vercel.app/api/embed"
+    // Our proxy API endpoint - use the base URL from config
+    const proxyUrl = `${config.api.baseUrl}/api/embed`
     
     // Get embeddings for the query
     const queryEmbedding = await getEmbedding(query, proxyUrl)
