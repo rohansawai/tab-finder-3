@@ -1,7 +1,7 @@
 "use client"
 
-import  from "../popup"
+import Popup from "../src/components/Popup"
 
 export default function SyntheticV0PageForDeployment() {
-  return < />
+  return <Popup />
 }
