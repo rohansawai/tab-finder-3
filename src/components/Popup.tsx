@@ -21,9 +21,19 @@ export default function Popup() {
     setStatusMessage('')
 
     try {
-      // In a real extension, this would use chrome.tabs API
-      // For the web version, we'll simulate the search
-      const matchedTabs = await findMatchingTabsWithAI(searchQuery)
+      // Get all tabs
+      const tabs = await chrome.tabs.query({})
+
+      // Prepare tab data for AI
+      const tabData = tabs.map((tab) => ({
+        id: tab.id,
+        title: tab.title,
+        url: tab.url,
+        favIconUrl: tab.favIconUrl,
+      }))
+
+      // Call our proxy API to find matching tabs
+      const matchedTabs = await findMatchingTabsWithAI(searchQuery, tabData)
       setResults(matchedTabs)
     } catch (error: any) {
       setStatusMessage(`Error: ${error.message}`)
@@ -41,17 +51,80 @@ export default function Popup() {
     }
   }
 
-  // Simulated functions for the web version
-  const findMatchingTabsWithAI = async (query: string) => {
-    // This would call your API in a real extension
-    return [
-      { id: 1, title: 'Example Tab 1', url: 'https://example.com/1' },
-      { id: 2, title: 'Example Tab 2', url: 'https://example.com/2' },
-    ]
+  // Function to find matching tabs using our proxy API
+  const findMatchingTabsWithAI = async (query: string, tabData: any[]) => {
+    // Our proxy API endpoint
+    const proxyUrl = `${config.api.baseUrl}/api/embed`
+    
+    // Get embeddings for the query
+    const queryEmbedding = await getEmbedding(query, proxyUrl)
+    
+    // Get embeddings for each tab
+    const tabEmbeddings = await Promise.all(
+      tabData.map(async (tab) => {
+        const text = `${tab.title} ${tab.url}`
+        const embedding = await getEmbedding(text, proxyUrl)
+        return { id: tab.id, embedding }
+      })
+    )
+    
+    // Calculate similarity scores
+    const scoredTabs = tabEmbeddings.map(({ id, embedding }) => {
+      const score = cosineSimilarity(queryEmbedding, embedding)
+      return { id, score }
+    })
+    
+    // Sort by score (descending)
+    scoredTabs.sort((a, b) => b.score - a.score)
+    
+    // Take the top 5 results with a score > 0.5
+    return scoredTabs
+      .filter((tab) => tab.score > 0.5)
+      .slice(0, 5)
+      .map((tab) => tab.id)
+  }
+  
+  // Function to get embeddings from our proxy API
+  const getEmbedding = async (text: string, proxyUrl: string) => {
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text })
+    })
+    
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`)
+    }
+    
+    const data = await response.json()
+    return data.embedding
+  }
+  
+  // Function to calculate cosine similarity between two vectors
+  const cosineSimilarity = (vecA: number[], vecB: number[]) => {
+    let dotProduct = 0
+    let normA = 0
+    let normB = 0
+    
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i]
+      normA += vecA[i] * vecA[i]
+      normB += vecB[i] * vecB[i]
+    }
+    
+    normA = Math.sqrt(normA)
+    normB = Math.sqrt(normB)
+    
+    if (normA === 0 || normB === 0) return 0
+    
+    return dotProduct / (normA * normB)
   }
 
+  // Function to find matching tabs locally using simple text matching (fallback)
   const findMatchingTabsLocally = (query: string) => {
-    // Simple local matching simulation
+    const queryTerms = query.toLowerCase().split(/\s+/)
     return [
       { id: 3, title: 'Local Match 1', url: 'https://example.com/3' },
       { id: 4, title: 'Local Match 2', url: 'https://example.com/4' },
