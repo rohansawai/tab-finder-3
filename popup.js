@@ -1,37 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("search-input")
   const searchButton = document.getElementById("search-button")
-  const apiKeyInput = document.getElementById("api-key")
-  const saveApiKeyButton = document.getElementById("save-api-key")
   const statusMessage = document.getElementById("status-message")
   const resultsList = document.getElementById("results-list")
   const loadingElement = document.getElementById("loading")
 
-  // Load saved API token
-  chrome.storage.local.get(["huggingFaceToken"], (result) => {
-    if (result.huggingFaceToken) {
-      apiKeyInput.value = result.huggingFaceToken
-      apiKeyInput.type = "password"
-      statusMessage.textContent = "Hugging Face token loaded"
-      statusMessage.className = "status success"
-    }
-  })
-
-  // Save API token
-  saveApiKeyButton.addEventListener("click", () => {
-    const apiKey = apiKeyInput.value.trim()
-    chrome.storage.local.set({ huggingFaceToken: apiKey }, () => {
-      if (apiKey) {
-        statusMessage.textContent = "Hugging Face token saved successfully"
-      } else {
-        statusMessage.textContent = "Using local matching (no token)"
-      }
-      statusMessage.className = "status success"
-      setTimeout(() => {
-        statusMessage.textContent = ""
-      }, 3000)
-    })
-  })
+  // Remove API key input elements since we're using our own API key
+  document.querySelector(".api-key-container").style.display = "none"
 
   // Search for tabs
   searchButton.addEventListener("click", async () => {
@@ -41,9 +16,6 @@ document.addEventListener("DOMContentLoaded", () => {
       statusMessage.className = "status error"
       return
     }
-
-    // Get API token (optional)
-    const { huggingFaceToken } = await chrome.storage.local.get(["huggingFaceToken"])
 
     // Show loading state
     loadingElement.classList.remove("hidden")
@@ -62,14 +34,34 @@ document.addEventListener("DOMContentLoaded", () => {
         favIconUrl: tab.favIconUrl,
       }))
 
-      // Call AI to find matching tabs (with or without API token)
-      const matchedTabs = await findMatchingTabs(query, tabData, huggingFaceToken)
+      // Call our proxy API to find matching tabs
+      const matchedTabs = await findMatchingTabsWithAI(query, tabData)
 
       // Display results
       displayResults(matchedTabs, tabs)
     } catch (error) {
       statusMessage.textContent = `Error: ${error.message}`
       statusMessage.className = "status error"
+
+      // Fallback to local matching if the AI search fails
+      try {
+        const tabs = await chrome.tabs.query({})
+        const tabData = tabs.map((tab) => ({
+          id: tab.id,
+          title: tab.title,
+          url: tab.url,
+          favIconUrl: tab.favIconUrl,
+        }))
+
+        statusMessage.textContent = "Using fallback local matching"
+        statusMessage.className = "status warning"
+
+        const matchedTabs = findMatchingTabsLocally(query, tabData)
+        displayResults(matchedTabs, tabs)
+      } catch (fallbackError) {
+        statusMessage.textContent = `Error: ${fallbackError.message}`
+        statusMessage.className = "status error"
+      }
     } finally {
       loadingElement.classList.add("hidden")
     }
@@ -82,60 +74,78 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   })
 
-  // Function to find matching tabs using Hugging Face or local processing
-  async function findMatchingTabs(query, tabData, apiKey) {
-    // If we have a Hugging Face API token, use their API
-    if (apiKey) {
-      return await findMatchingTabsWithHuggingFace(query, tabData, apiKey)
-    } else {
-      // Otherwise, use a simple local matching algorithm
-      return findMatchingTabsLocally(query, tabData)
-    }
+  // Function to find matching tabs using our proxy API
+  async function findMatchingTabsWithAI(query, tabData) {
+    // Our proxy API endpoint - replace with your deployed URL
+    const proxyUrl = "https://your-vercel-app.vercel.app/api/embed"
+    
+    // Get embeddings for the query
+    const queryEmbedding = await getEmbedding(query, proxyUrl)
+    
+    // Get embeddings for each tab
+    const tabEmbeddings = await Promise.all(
+      tabData.map(async (tab) => {
+        const text = `${tab.title} ${tab.url}`
+        const embedding = await getEmbedding(text, proxyUrl)
+        return { id: tab.id, embedding }
+      })
+    )
+    
+    // Calculate similarity scores
+    const scoredTabs = tabEmbeddings.map(({ id, embedding }) => {
+      const score = cosineSimilarity(queryEmbedding, embedding)
+      return { id, score }
+    })
+    
+    // Sort by score (descending)
+    scoredTabs.sort((a, b) => b.score - a.score)
+    
+    // Take the top 5 results with a score > 0.5
+    return scoredTabs
+      .filter((tab) => tab.score > 0.5)
+      .slice(0, 5)
+      .map((tab) => tab.id)
   }
-
-  // Function to find matching tabs using Hugging Face's API
-  async function findMatchingTabsWithHuggingFace(query, tabData, apiKey) {
-    // Prepare the data for the embedding model
-    const texts = tabData.map((tab) => `${tab.title} ${tab.url}`)
-    texts.push(query) // Add the query as the last item
-
-    // Get embeddings from Hugging Face
-    const response = await fetch("https://api-inference.huggingface.co/models/sentence-transformers/all-MiniLM-L6-v2", {
+  
+  // Function to get embeddings from our proxy API
+  async function getEmbedding(text, proxyUrl) {
+    const response = await fetch(proxyUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        inputs: {
-          source_sentence: query,
-          sentences: texts.slice(0, -1), // All except the query
-        },
-      }),
+      body: JSON.stringify({ text })
     })
-
+    
     if (!response.ok) {
-      // If the API call fails, fall back to local matching
-      console.warn("Hugging Face API call failed, falling back to local matching")
-      return findMatchingTabsLocally(query, tabData)
+      throw new Error(`API request failed: ${response.statusText}`)
     }
-
-    const similarities = await response.json()
-
-    // Create pairs of [tab index, similarity score]
-    const scoredIndices = similarities.map((score, index) => [index, score])
-
-    // Sort by similarity score (descending)
-    scoredIndices.sort((a, b) => b[1] - a[1])
-
-    // Take the top 5 results
-    const topIndices = scoredIndices.slice(0, 5).map((pair) => pair[0])
-
-    // Map indices back to tab IDs
-    return topIndices.map((index) => tabData[index].id)
+    
+    const data = await response.json()
+    return data.embedding
+  }
+  
+  // Function to calculate cosine similarity between two vectors
+  function cosineSimilarity(vecA, vecB) {
+    let dotProduct = 0
+    let normA = 0
+    let normB = 0
+    
+    for (let i = 0; i < vecA.length; i++) {
+      dotProduct += vecA[i] * vecB[i]
+      normA += vecA[i] * vecA[i]
+      normB += vecB[i] * vecB[i]
+    }
+    
+    normA = Math.sqrt(normA)
+    normB = Math.sqrt(normB)
+    
+    if (normA === 0 || normB === 0) return 0
+    
+    return dotProduct / (normA * normB)
   }
 
-  // Function to find matching tabs locally using simple text matching
+  // Function to find matching tabs locally using simple text matching (fallback)
   function findMatchingTabsLocally(query, tabData) {
     const queryTerms = query.toLowerCase().split(/\s+/)
 

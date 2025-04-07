@@ -1,8 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Tab Finder",
-  "version": "1.0",
-  "description": "Find tabs using natural language descriptions with AI assistance",
+  "version": "1.0.0",
+  "description": "Find tabs using natural language descriptions with AI assistance. Quickly locate any open tab by describing its content or URL.",
+  "author": "Your Name",
+  "homepage_url": "https://your-website.com",
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -11,8 +13,13 @@
       "128": "icon128.png"
     }
   },
-  "permissions": ["tabs", "storage"],
-  "host_permissions": ["https://api-inference.huggingface.co/*"],
+  "permissions": [
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://your-proxy-server.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
@@ -21,6 +28,14 @@
     "16": "icon16.png",
     "48": "icon48.png",
     "128": "icon128.png"
-  }
+  },
+  "minimum_chrome_version": "88",
+  "offline_enabled": true,
+  "short_name": "Tab Finder",
+  "update_url": "https://your-update-server.com/updates.xml",
+  "web_accessible_resources": [{
+    "resources": ["assets/*"],
+    "matches": ["<all_urls>"]
+  }]
 }
 

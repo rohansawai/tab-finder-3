@@ -82,6 +82,10 @@ h1 {
   min-height: 16px;
 }
 
+.status.warning {
+  color: #f57c00;
+}
+
 .results-container {
   max-height: 300px;
   overflow-y: auto;
